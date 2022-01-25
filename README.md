@@ -12,6 +12,8 @@ Api documentation can be found here:
 
 https://apereo.github.io/phpCAS/api/
 
+**IMPORTANTE: Se hace una simple modificación para usar simplesamlphp para hacer el proceso de autentificación. Es necesario para que funcione ITOP con CAS, hay que reemplazar el phpCAS que incluye por el proporcionado en este repositorio**
+
 
 [![Test](https://github.com/apereo/phpCAS/actions/workflows/test.yml/badge.svg)](https://github.com/apereo/phpCAS/actions/workflows/test.yml)
 
