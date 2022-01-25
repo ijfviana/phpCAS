@@ -17,6 +17,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
+ * Esta clase es la que debe sustituir a la localizada en el directorio 
+ * env-production/authent-cas/vendor/apereo/phpcas/source una vez actualizado/instalado itop.
+ * 
+ * Además, en la misma carpeta (env-production/authent-cas/vendor/apereo/phpcas/source), hay 
+ * que crear un enlace simbólico denominado simplesamlphp que apunte a la instalación de simplsamlphp.
+ *
+ * Podemos modificar el valor de las siguientes constantes:
+ *
+ *
+ *. "AUTH_SOURCE" : fuente de autentificación a usar;
+ *. "LOGIN_ATTR"  : nombre del atributo que contiene el identificador de usuario usado;
+ *. "MEMBER_ATTR" : nombre del atributo que contiene los grupos a los que pertenece un usuario:
+ *
+ **/
  *
  *
  * Interface class of the phpCAS library
@@ -49,6 +63,26 @@ if (!isset($_SERVER['REQUEST_URI']) && isset($_SERVER['SCRIPT_NAME']) && isset($
 // ########################################################################
 //  CONSTANTS
 // ########################################################################
+
+/**
+ * The default directory for SimpleSamlphp lib.
+ */
+ //define("SIMPLESAML_LIB", __DIR__.'/simplesamlphp///lib');
+ define("SIMPLESAML_LIB", '/var/www/ayudame.uhu.es/app/simplesamlphp/lib');
+
+
+/**
+ * The default name for auth source.
+ */
+define("AUTH_SOURCE", 'default-sp');
+
+
+/**
+ * The default name for login name attribute.
+ */
+define("LOGIN_ATTR", 'mail');
+
+define("MEMBER_ATTR", 'uhuScope');
 
 // ------------------------------------------------------------------------
 //  CAS VERSIONS
@@ -356,10 +390,11 @@ class phpCAS
 
         // initialize the object $_PHPCAS_CLIENT
         try {
-            self::$_PHPCAS_CLIENT = new CAS_Client(
+            self::$_PHPCAS_CLIENT = new SimpleSAML_Auth_Simple(AUTH_SOURCE);
+            /*self::$_PHPCAS_CLIENT = new CAS_Client(
                 $server_version, false, $server_hostname, $server_port, $server_uri,
                 $changeSessionID, $sessionHandler
-            );
+            );*/
         } catch (Exception $e) {
             phpCAS :: error(get_class($e) . ': ' . $e->getMessage());
         }
@@ -1140,10 +1175,12 @@ class phpCAS
     {
         phpCAS :: traceBegin();
         phpCAS::_validateClientExists();
-        $auth = self::$_PHPCAS_CLIENT->forceAuthentication();
+        
+        $auth = self::$_PHPCAS_CLIENT->requireAuth();
+        //$auth = self::$_PHPCAS_CLIENT->forceAuthentication();
 
         // store where the authentication has been checked and the result
-        self::$_PHPCAS_CLIENT->markAuthenticationCall($auth);
+        //self::$_PHPCAS_CLIENT->markAuthenticationCall($auth);
 
         /*      if (!$auth) {
          phpCAS :: trace('user is not authenticated, redirecting to the CAS server');
@@ -1190,7 +1227,7 @@ class phpCAS
         $auth = self::$_PHPCAS_CLIENT->isAuthenticated();
 
         // store where the authentication has been checked and the result
-        self::$_PHPCAS_CLIENT->markAuthenticationCall($auth);
+        //self::$_PHPCAS_CLIENT->markAuthenticationCall($auth);
 
         phpCAS :: traceEnd($auth);
         return $auth;
@@ -1222,7 +1259,8 @@ class phpCAS
         phpCAS::_validateClientExists();
 
         try {
-            return self::$_PHPCAS_CLIENT->getUser();
+            return (self::getAttribute(LOGIN_ATTR));
+            //return self::$_PHPCAS_CLIENT->getUser();
         } catch (Exception $e) {
             phpCAS :: error(get_class($e) . ': ' . $e->getMessage());
         }
@@ -1241,7 +1279,10 @@ class phpCAS
         phpCAS::_validateClientExists();
 
         try {
-            return self::$_PHPCAS_CLIENT->getAttributes();
+            $attr = $_PHPCAS_CLIENT->getAttributes();
+            $attr['memberOf'] = $attr[MEMBER_ATTR];
+            return $attr;
+            //return self::$_PHPCAS_CLIENT->getAttributes();
         } catch (Exception $e) {
             phpCAS :: error(get_class($e) . ': ' . $e->getMessage());
         }
@@ -1300,7 +1341,13 @@ class phpCAS
         phpCAS::_validateClientExists();
 
         try {
-            return self::$_PHPCAS_CLIENT->getAttribute($key);
+            $attrs = self::$_PHPCAS_CLIENT->getAttributes();
+            if (array_key_exists($key, $attrs)) {
+                return($attrs[$key][0]);
+            }else
+                throw new Exception("Attribute $key not found");
+            
+            //return self::$_PHPCAS_CLIENT->getAttribute($key);
         } catch (Exception $e) {
             phpCAS :: error(get_class($e) . ': ' . $e->getMessage());
         }
@@ -1490,7 +1537,8 @@ class phpCAS
                 $parsedParams[$key] = $value;
             }
         }
-        self::$_PHPCAS_CLIENT->logout($parsedParams);
+        SimpleSAML_Session::getSessionFromRequest()->cleanup();
+        //self::$_PHPCAS_CLIENT->logout($parsedParams);
         // never reached
         phpCAS :: traceEnd();
     }
@@ -1512,6 +1560,7 @@ class phpCAS
             phpCAS :: error('type mismatched for parameter $service (should be `string\')');
         }
         self::$_PHPCAS_CLIENT->logout(array ( "service" => $service ));
+        SimpleSAML_Session::getSessionFromRequest()->cleanup();
         // never reached
         phpCAS :: traceEnd();
     }
